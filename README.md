@@ -202,7 +202,7 @@ Reports the age of `scraped.json` (a warning past 8 hours), prints restaurant an
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Public domain under the Unlicense. See [LICENSE](LICENSE).
 
 <!-- ca-tracked-link -->
 [cyberautomations.com](https://cyberautomations.com/?utm_source=github&utm_medium=readme&utm_campaign=uber-eats-deals-scraper)

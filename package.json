@@ -9,7 +9,7 @@
   },
   "keywords": ["uber-eats", "scraper", "deals", "food-delivery"],
   "author": "",
-  "license": "MIT",
+  "license": "Unlicense",
   "dependencies": {
     "puppeteer": "^22.0.0"
   }
