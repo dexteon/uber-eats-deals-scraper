@@ -1,0 +1,14 @@
+node_modules/
+config.json
+scraped.json
+*.log
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+.DS_Store
+Thumbs.db
+*.local.*
+.env
+.env.local

@@ -1,0 +1,13 @@
+{
+  "address": "YOUR_DELIVERY_ADDRESS_HERE",
+  "scanLimit": 30,
+  "diningMode": "PICKUP",
+  "headless": true,
+  "tipScale": [5, 7, 10],
+  "deliveryFee": 0,
+  "serviceFeePct": 0.15,
+  "taxRate": 0,
+  "timeoutMs": 900000,
+  "userDataDir": "",
+  "executablePath": ""
+}

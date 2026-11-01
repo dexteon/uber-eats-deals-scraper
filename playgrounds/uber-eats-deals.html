@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en" data-theme="portal" data-bs-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UberEats Deals Tracker</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js" defer></script>
+<style>
+.deal-card{border-left:4px solid var(--tblr-primary);margin-bottom:1rem;padding:1rem;background:var(--tblr-bg-surface-tertiary);border-radius:var(--tblr-border-radius)}
+.deal-card h5{margin:0 0 0.375rem;font-size:1rem;font-weight:600}
+.deal-card .deal-meta{font-size:var(--tblr-font-size-sm);color:var(--tblr-text-secondary-color)}
+.cart-breakdown{font-size:var(--tblr-font-size-sm);padding:0.625rem;background:var(--tblr-bg-surface-secondary);border-radius:var(--tblr-border-radius);margin-top:0.5rem}
+.cart-breakdown .row{display:flex;justify-content:space-between;padding:0.1875rem 0;border-bottom:1px dotted var(--tblr-border-color)}
+.cart-breakdown .row:last-child{border:none;font-weight:600;color:var(--tblr-success);font-size:0.9rem}
+.cart-breakdown .row.sub{color:var(--tblr-text-secondary-color);font-size:var(--tblr-font-size-xs)}
+.tip-scale{margin-top:0.5rem;padding:0.5rem;background:var(--tblr-bg-surface-secondary);border-radius:var(--tblr-border-radius)}
+.tip-scale .tip-row{display:flex;justify-content:space-between;padding:0.125rem 0.5rem;font-size:var(--tblr-font-size-sm);color:var(--tblr-success)}
+.stat-tile{text-align:center;padding:1rem}
+.stat-tile .num{font-size:2rem;font-weight:700}
+.stat-tile .lbl{font-size:0.75rem;color:var(--tblr-text-secondary-color);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px}
+.accordion-button{background:var(--tblr-bg-surface-tertiary)}
+.accordion-button:not(.collapsed){background:var(--tblr-primary-bg-subtle)}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-wrapper">
+    <div class="page-header d-print-none">
+      <div class="container-fluid">
+        <div class="row g-2 align-items-center">
+          <div class="col">
+            <div class="page-pretitle">Food</div>
+            <h2 class="page-title">UberEats Deals Tracker</h2>
+            <div class="text-secondary mt-1">Pickup deals near your address. Full cart math with fees, tax, and tips. <span class="badge bg-primary ms-2" id="scanDateBadge">Scanning...</span></div>
+          </div>
+          <div class="col-12 col-md-auto ms-auto">
+            <div class="btn-list">
+              <span class="text-secondary small align-self-center" id="stamp">Updated just now</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="container-fluid">
+        <div class="row row-cards mb-3">
+          <div class="col-4 col-lg-3"><div class="card card-sm"><div class="card-body stat-tile"><div class="subheader">Restaurants</div><div class="num text-success" id="statRestaurants">0</div></div></div></div>
+          <div class="col-4 col-lg-3"><div class="card card-sm"><div class="card-body stat-tile"><div class="subheader">Total Deals</div><div class="num" id="statDeals">0</div></div></div></div>
+          <div class="col-4 col-lg-3"><div class="card card-sm"><div class="card-body stat-tile"><div class="subheader">Best Price</div><div class="num text-primary font-monospace" id="statBest">$-</div></div></div></div>
+        </div>
+        <div class="card mb-3">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-center">
+              <div class="col-12 col-md">
+                <div class="input-icon"><span class="input-icon-addon"><i class="ti ti-search"></i></span>
+                  <input type="search" class="form-control" id="searchBox" placeholder="Search restaurants or deals...">
+                </div>
+              </div>
+              <div class="col-auto">
+                <div class="nav nav-segmented" role="group">
+                  <button type="button" class="nav-link active" onclick="doSort('price')">Lowest Price</button>
+                  <button type="button" class="nav-link" onclick="doSort('deals')">Most Deals</button>
+                  <button type="button" class="nav-link" onclick="doSort('name')">A-Z</button>
+                </div>
+              </div>
+              <div class="col-auto ms-auto text-secondary small font-monospace" id="countLabel">0 of 0</div>
+            </div>
+          </div>
+        </div>
+        <div id="dealsContainer"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+var RAW=null;
+function f(c){return'$'+(c/100).toFixed(2)}
+function esc(s){return String(s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"')}
+function dealBadge(t){
+  if(t.indexOf('BOGO')>=0)return'<span class="badge bg-green-lt">BOGO</span>';
+  if(t.indexOf('Percent')>=0)return'<span class="badge bg-blue-lt">Percent Off</span>';
+  return'<span class="badge bg-gray">Promo</span>';
+}
+function renderTable(data){
+  var totalDeals=0,best=Infinity;
+  data.forEach(function(r){totalDeals+=r.deals.length;if(r.bestDealPrice<best)best=r.bestDealPrice});
+  document.getElementById('statRestaurants').textContent=data.length;
+  document.getElementById('statDeals').textContent=totalDeals;
+  document.getElementById('statBest').textContent=best<Infinity?f(best):'$-';
+  var html='';
+  data.forEach(function(r,idx){
+    var accordionId='acc'+idx;
+    var dealCards='';
+    r.deals.forEach(function(d){
+      dealCards+='<div class="deal-card">'
+        +'<h5>'+esc(d.title)+'</h5>'
+        +'<div class="d-flex gap-2 align-items-center mb-2">'+dealBadge(d.dealType)+'<span class="deal-meta">Min '+d.minItems+' item'+(d.minItems>1?'s':'')+'</span>'
+        +'<span class="ms-auto font-monospace text-success fw-bold">'+f(d.cartCost)+'</span></div>'
+        +'<div class="cart-breakdown">'
+        +'<div class="row sub"><span>'+esc(d.dealType)+'</span><span>'+f(d.cartCost)+'</span></div>'
+        +'<div class="row sub"><span>Delivery fee</span><span>'+f(d.deliveryFee)+'</span></div>'
+        +'<div class="row sub"><span>Service fee</span><span>'+f(d.serviceFee)+'</span></div>'
+        +'<div class="row sub"><span>Tax</span><span>'+f(d.subtotalTax)+'</span></div>'
+        +'<div class="row"><span>TOTAL</span><span>'+f(d.cartCost+d.deliveryFee+d.serviceFee+d.subtotalTax)+'</span></div></div>'
+        +'<div class="tip-scale"><div class="text-secondary mb-1 fs-7">Tips:</div>';
+      d.totalsWithTips.forEach(function(tip){
+        dealCards+='<div class="tip-row"><span>'+tip.label+'</span><span>'+f(tip.total)+'</span></div>';
+      });
+      dealCards+='</div></div>';
+    });
+    html+='<div class="accordion mb-3"><div class="accordion-item"><div class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#'+accordionId+'">'
+      +'<span class="fw-bold">'+esc(r.name)+'</span> <span class="text-secondary ms-2">('+(r.deals.length)+' deals)</span>'
+      +'<span class="badge bg-success ms-2">Best '+f(r.bestDealPrice)+'</span></button></div>'
+      +'<div class="accordion-collapse collapse show" id="'+accordionId+'"><div class="accordion-body p-0">'+dealCards+'</div></div></div></div>';
+  });
+  if(data.length===0) html='<div class="card"><div class="card-body text-center text-secondary py-4">No deals found. Run npm run scrape to refresh.</div></div>';
+  document.getElementById('dealsContainer').innerHTML=html;
+  document.getElementById('countLabel').textContent=data.length+' of '+(RAW?RAW.length:0);
+  if(data.length>0 && data[0].scanDate) {
+    document.getElementById('scanDateBadge').textContent='Scanned: '+data[0].scanDate;
+  }
+}
+function doSort(b){
+  var btns=document.querySelectorAll('.nav-link');btns.forEach(function(b){b.classList.remove('active')});
+  var idx=b==='price'?0:b==='deals'?1:2;btns[idx].classList.add('active');
+  if(!RAW)return;
+  var q=document.getElementById('searchBox').value.toLowerCase();
+  var d=RAW.filter(function(r){if(!q)return true;return r.name.toLowerCase().indexOf(q)>=0||r.deals.some(function(x){return(x.title||'').toLowerCase().indexOf(q)>=0})});
+  if(b==='price')d.sort(function(a,b){return a.bestDealPrice-b.bestDealPrice});
+  else if(b==='deals')d.sort(function(a,b){return b.deals.length-a.deals.length});
+  else if(b==='name')d.sort(function(a,b){return a.name.localeCompare(b.name)});
+  renderTable(d);
+}
+document.getElementById('searchBox').addEventListener('input',function(){doSort('price')});
+fetch('./scraped.json').then(function(r){return r.json()}).then(function(d){RAW=d;renderTable(d)}).catch(function(e){document.getElementById('dealsContainer').innerHTML='<div class="card"><div class="card-body text-center text-secondary py-4">No scraped data. Run npm run scrape first.</div></div>'});
+</script>
+</body>
+</html>
