@@ -193,7 +193,7 @@ Reports the age of `scraped.json` (a warning past 8 hours), prints restaurant an
 
 ## Extending
 
-- Add deal types: inspect the `item.promotion` shapes in the React state and extend the deal type branches inside the `compiled.deals` map in `scrape.mjs`.
+- Add deal types: inspect the `item.promotion` shapes in the React state and extend the deal type branches inside the `compiled.deals.map` callback in `scrape.mjs`.
 - Other markets: change `taxRate`, `deliveryFee`, and `serviceFeePct` in the config.
 - History: replace `fs.writeFileSync` with SQLite or an append-only log.
 - Alerts: hook `health_check.mjs` to email or Telegram when data goes stale.
