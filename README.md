@@ -34,7 +34,7 @@ Create `config.json` from the example. It is gitignored, so your address stays l
 {
   "address": "YOUR_DELIVERY_ADDRESS_HERE",
   "scanLimit": 30,
-  "diningMode": "PICKUP",
+  "diningMode": "DELIVERY",
   "headless": true,
   "tipScale": [5, 7, 10],
   "deliveryFee": 0,
@@ -50,10 +50,10 @@ Create `config.json` from the example. It is gitignored, so your address stays l
 |-----|---------|
 | `address` | Full street address that UberEats accepts (street, city, state, ZIP) |
 | `scanLimit` | Maximum restaurants to visit per run (default 30) |
-| `diningMode` | `PICKUP` or `DELIVERY`. Sets the feed URL; the delivery fee is only applied for `DELIVERY` |
+| `diningMode` | `DELIVERY` (default) or `PICKUP`. Sets the feed URL; the delivery fee is only applied for `DELIVERY` |
 | `headless` | Puppeteer headless mode (`true` for background runs, `false` for debugging) |
 | `tipScale` | Tip amounts in whole dollars, shown in the dashboard |
-| `deliveryFee` | Flat delivery fee in dollars (ignored for `PICKUP`) |
+| `deliveryFee` | Flat delivery fee in dollars (ignored for `PICKUP`). Defaults to 0, so set your real fee for accurate totals |
 | `serviceFeePct` | Service fee as a fraction of the cart subtotal (default 0.15 = 15%) |
 | `taxRate` | Tax rate as a decimal (default 0; set your local rate) |
 | `timeoutMs` | Time budget for the whole run (default 900000 = 15 minutes) |
