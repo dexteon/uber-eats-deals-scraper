@@ -21,9 +21,10 @@ const {
   address: ADDRESS,
   scanLimit = 30,
   diningMode = 'DELIVERY',
+  vertical = 'restaurant',
   headless = true,
   tipScale = [5, 7, 10],
-  deliveryFee = 0,
+  deliveryFee = 2.99,
   serviceFeePct = 0.15,
   taxRate = 0,
   timeoutMs = 900000,
@@ -33,6 +34,7 @@ const {
 
 const SCAN_DATE = new Date().toISOString().slice(0, 10);
 const IS_PICKUP = diningMode === 'PICKUP';
+const IS_GROCERY = vertical === 'grocery';
 
 console.log('Launching Puppeteer...');
 
@@ -51,7 +53,9 @@ await page.setUserAgent(
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 );
 
-const feedUrl = `https://www.ubereats.com/feed?diningMode=${diningMode}`;
+const feedUrl = IS_GROCERY
+  ? `https://www.ubereats.com/category/grocery?diningMode=${diningMode}`
+  : `https://www.ubereats.com/feed?diningMode=${diningMode}`;
 await page.goto(feedUrl, { waitUntil: 'networkidle0', timeout: 30000 });
 
 // Wait for Cloudflare
@@ -79,12 +83,17 @@ if (firstResult) {
 console.log('URL:', page.url());
 console.log('Title:', await page.title());
 
-// Wait for restaurant grid
+// Wait for store grid
 try {
-  await page.waitForSelector('[data-testid="store-card"], [class*="store-card"]', { timeout: 10000 });
+  const selector = IS_GROCERY
+    ? '[data-testid="store-card"], [class*="store-card"], [data-testid*="merchant-card"]'
+    : '[data-testid="store-card"], [class*="store-card"]';
+  await page.waitForSelector(selector, { timeout: 10000 });
 } catch {}
 
-let cardsEl = await page.$$('a[data-testid="store-card"]');
+let cardsEl = IS_GROCERY
+  ? await page.$$('[data-testid="store-card"], [data-testid*="merchant-card"], [class*="store-card"]')
+  : await page.$$('a[data-testid="store-card"]');
 if (cardsEl.length === 0) cardsEl = await page.$$('[data-testid*="store-card"]');
 if (cardsEl.length === 0) cardsEl = await page.$$('[class*="store-card"]');
 console.log('Store cards found:', cardsEl.length);
@@ -155,12 +164,28 @@ for (let i = 0; i < limit; i++) {
           }
         }
 
-        // Catch all deal types: BOGO, percent off, free delivery, banner promos
+        // Grocery-specific: also look for items with loyaltyPrice, digitalCoupon, multiBuyPromotion
+        if (IS_GROCERY) {
+          for (const sec of dealSections) {
+            for (const { payload } of parsedData.catalogSectionsMap?.[sec.uuid] || []) {
+              for (const item of payload?.standardItemsPayload?.catalogItems || []) {
+                if (!items.has(item.uuid) &&
+                    (item.loyaltyPrice || item.digitalCoupon || item.multiBuyPromotion || item.unitPricePromotion)) {
+                  items.set(item.uuid, item);
+                }
+              }
+            }
+          }
+        }
+
+        // Catch all deal types: BOGO, percent off, free delivery, banner promos, grocery promos
         const dealItems = Array.from(items.values()).filter(item => {
           if (item.itemPromotion) return true;
           if (item.promotion) return true;
           if (item.promotions?.length > 0) return true;
           if (item.bannerPromotion) return true;
+          // Grocery-specific promotions
+          if (IS_GROCERY && (item.loyaltyPrice || item.digitalCoupon || item.multiBuyPromotion || item.unitPricePromotion)) return true;
           return false;
         });
 
@@ -178,6 +203,33 @@ for (let i = 0; i < limit; i++) {
             let cartCost = originalPrice;
             let savings = 0;
             let minItems = 1;
+
+            // Grocery-specific promotions
+            if (IS_GROCERY) {
+              const loyalty = d.loyaltyPrice;
+              const coupon = d.digitalCoupon;
+              const multiBuy = d.multiBuyPromotion;
+              const unitPrice = d.unitPricePromotion;
+
+              if (loyalty && loyalty.price < originalPrice) {
+                dealType = 'Loyalty Price';
+                cartCost = loyalty.price;
+                savings = originalPrice - loyalty.price;
+              } else if (coupon && coupon.discountAmount) {
+                dealType = 'Digital Coupon';
+                cartCost = originalPrice - coupon.discountAmount;
+                savings = coupon.discountAmount;
+              } else if (multiBuy && multiBuy.quantity && multiBuy.discountPerItem) {
+                dealType = 'Multi-Buy';
+                minItems = multiBuy.quantity;
+                cartCost = originalPrice * minItems - (multiBuy.discountPerItem * minItems);
+                savings = multiBuy.discountPerItem * minItems;
+              } else if (unitPrice && unitPrice.price) {
+                dealType = 'Unit Price Promo';
+                cartCost = unitPrice.price;
+                savings = originalPrice - unitPrice.price;
+              }
+            }
 
             if (buyX && buyX.buyQuantity) {
               const buyQty = buyX.buyQuantity;
