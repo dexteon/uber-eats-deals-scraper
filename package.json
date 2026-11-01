@@ -1,7 +1,7 @@
 {
   "name": "uber-eats-deals-scraper",
   "version": "1.0.0",
-  "description": "Scrape UberEats pickup deals and display full cart costs with fees, tax, and tips",
+  "description": "Scrape UberEats deals and display full cart costs with fees, tax, and tips",
   "type": "module",
   "scripts": {
     "scrape": "node scrape.mjs",

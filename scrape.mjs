@@ -20,7 +20,7 @@ if (fs.existsSync(CONFIG_PATH)) {
 const {
   address: ADDRESS,
   scanLimit = 30,
-  diningMode = 'PICKUP',
+  diningMode = 'DELIVERY',
   headless = true,
   tipScale = [5, 7, 10],
   deliveryFee = 0,
