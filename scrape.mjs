@@ -22,13 +22,13 @@ const {
   scanLimit = 30,
   diningMode = 'DELIVERY',
   vertical = 'restaurant',
-  headless = true,
+  headless = false,
   tipScale = [5, 7, 10],
   deliveryFee = 2.99,
   serviceFeePct = 0.15,
   taxRate = 0,
   timeoutMs = 900000,
-  userDataDir = '',
+  userDataDir = path.join(process.cwd(), 'chrome-profile'),
   executablePath = ''
 } = config;
 
@@ -54,21 +54,61 @@ await page.setUserAgent(
 );
 
 const feedUrl = IS_GROCERY
-  ? `https://www.ubereats.com/category/grocery?diningMode=${diningMode}`
+  ? `https://www.ubereats.com/feed?diningMode=${diningMode}`
   : `https://www.ubereats.com/feed?diningMode=${diningMode}`;
 await page.goto(feedUrl, { waitUntil: 'networkidle0', timeout: 30000 });
 
 // Wait for Cloudflare
 let title = await page.title();
-for (let i = 0; i < 3; i++) {
+for (let i = 0; i < 10; i++) {
   if (title !== 'Just a moment...') break;
+  console.log(`Waiting for Cloudflare... attempt ${i+1}`);
   try { await page.waitForFunction(() => document.title !== 'Just a moment...', { timeout: 10000 }); break; } catch {}
   title = await page.title();
 }
+console.log('Post-CF title:', title);
+console.log('Post-CF URL:', page.url());
 
 console.log('Setting address:', ADDRESS);
-await page.focus('input#location-typeahead-home-input, input[placeholder*="address"]');
-await page.type('input#location-typeahead-home-input, input[placeholder*="address"]', ADDRESS, { delay: 30 });
+// Try multiple address input selectors for different page types
+const addressSelectors = [
+  'input#location-typeahead-home-input',
+  'input[placeholder*="address" i]',
+  'input[placeholder*="Address" i]',
+  'input[placeholder*="delivery" i]',
+  'input[placeholder*="Delivery" i]',
+  'input[name*="address" i]',
+  'input[id*="address" i]',
+  'input[type="search"]'
+];
+let addressInput = null;
+for (const sel of addressSelectors) {
+  addressInput = await page.$(sel);
+  if (addressInput) {
+    console.log('Found address input with selector:', sel);
+    break;
+  }
+}
+if (!addressInput) {
+  // Last resort: find any visible input
+  const inputs = await page.$$('input[type="text"], input[type="search"], input:not([type="hidden"])');
+  for (const inp of inputs) {
+    const isVisible = await inp.isIntersectingViewport();
+    if (isVisible) {
+      addressInput = inp;
+      console.log('Found visible input as fallback');
+      break;
+    }
+  }
+}
+if (addressInput) {
+  await addressInput.focus();
+  await addressInput.type(ADDRESS, { delay: 30 });
+} else {
+  console.error('Could not find address input!');
+  await browser.close();
+  process.exit(1);
+}
 await new Promise(r => setTimeout(r, 3000));
 
 const firstResult = await page.$('[data-testid*="suggestion"], [class*="suggestion"], [class*="result"], li[role="option"]');
